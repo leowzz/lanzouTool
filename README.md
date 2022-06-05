@@ -2,7 +2,7 @@
 
 <img src="https://pc.woozooo.com/img/logo2.gif" width="200">
 
-### Powered By [zaxtyson](https://github.com/zaxtyson) 大佬的 [LanZouCloud-API](https://github.com/zaxtyson/LanZouCloud-API) ![](https://camo.githubusercontent.com/78d53b4ac8106d2546d97b1f2248ce7e69b369b04dc23ae702e777ccd6d11dc3/68747470733a2f2f696d672e736869656c64732e696f2f6769746875622f762f72656c656173652f7a61787479736f6e2f4c616e5a6f75436c6f75642d4150492e7376673f6c6f676f3d69436c6f7564)
+### Powered By [LanZouCloud-API](https://github.com/zaxtyson/LanZouCloud-API) ![](https://camo.githubusercontent.com/78d53b4ac8106d2546d97b1f2248ce7e69b369b04dc23ae702e777ccd6d11dc3/68747470733a2f2f696d672e736869656c64732e696f2f6769746875622f762f72656c656173652f7a61787479736f6e2f4c616e5a6f75436c6f75642d4150492e7376673f6c6f676f3d69436c6f7564)
 
 ------
 
@@ -34,11 +34,11 @@ pip install lanzou-api
 
 - 打开浏览器调试界面(按F12), 选择网络(Network)
 
-![](https://github.com/3181538941/lanzouTool/blob/main/pic/img.png)
+<img src="https://github.com/3181538941/lanzouTool/blob/main/pic/img.png"/>
 
 - 选择account.php, 在响应头中查看cookie
 
-![](https://github.com/3181538941/lanzouTool/blob/main/pic/login.png)
+<img src="https://github.com/3181538941/lanzouTool/blob/main/pic/login.png"/>
 
 或使用其他方式获取cookie
 
