@@ -34,11 +34,11 @@ pip install lanzou-api
 
 - 打开浏览器调试界面(按F12), 选择网络(Network)
 
-![](./pic/img.png)
+![](https://github.com/3181538941/lanzouTool/blob/main/pic/img.png)
 
 - 选择account.php, 在响应头中查看cookie
 
-![](./pic/login.png)
+![](https://github.com/3181538941/lanzouTool/blob/main/pic/login.png)
 
 或使用其他方式获取cookie
 
