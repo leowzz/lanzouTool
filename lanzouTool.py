@@ -1,52 +1,49 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# 是否使用mysql存储文件md5等信息, 主要用来检测文件是否已经上传过
-# 如过没有相关环境或不想使用, 则下面的config字典也可以忽略
-UseMysql = False
+import os
+import time
+import hashlib
+
+from lanzou.api import LanZouCloud
+
+# 配置区域 begin
+# 要扫描的目录
+scanPath = r'B:\01_软件,环境\01_工具'
 # cookie内的登录信息, cookie中获取的信息
 cookie131 = {
     'ylogin'      : '*******',
-    'phpdisk_info': 'AjRWATUAOwBhDGJTAAVhAA......',
+    'phpdisk_info': 'AjOwBhVhAA......',
 }
-# 默认日志生成路径
+# 日志生成目录, 运行后会生成:
+# 1. .md文件: 用于记录文件名称, 蓝奏云链接, 并自动生成一个引用行用于日后增添文件介绍
+# 2. bigFiles.txt: 因为大小超过100MB而略过的文件, 记录其路径
+# 3. .log: 程序运行日志
 log_dir = r'./log'
 # 文件默认密码, 上传文件或者新建文件夹后会设置成默认密码
 default_password = '****'
-# 数据库配置参数, UseMysql = False 时忽略
-config = {
-    'host'    : "localhost",
-    'port'    : 3306,
-    'user'    : "root",
-    'passwd'  : "******",
-    'charset' : 'utf8',
-    'database': 'mydata',
-}
+# 配置区域 end
 
-import os
-import time
-from lanzou.api import LanZouCloud
-
-if writeToMysql:
-    import hashlib
-    import pymysql
-
+# 脚本初始化区域
 fileNameUrlDict = {}
-# 获取时间
-log_path = time.strftime('%Y-%m-%d_%H%M%S.txt', time.localtime(time.time()))
-md_path = time.strftime('%Y-%m-%d_%H%M%S.md', time.localtime(time.time()))
-# 创建日志目录
+# md_path = r'D:\0a.dataout\test\lanzouTool\fileNameUrl.md'
+except_dir = ['便携工具', '插件包', '脚本']
 if not os.path.exists(log_dir):
     os.mkdir(log_dir)
-# 拼接日志文件路径
-log_path = os.path.join(log_dir, log_path)
-md_path = os.path.join(log_dir, md_path)
-# 初始化忽略文件信息, 脚本执行完会添加到日志末尾
+time_ = time.strftime('%Y-%m-%d_%H%M%S', time.localtime(time.time()))
+md_path = time_ + '.md'
+big_rec = time_ + 'bigFiles.txt'
+log_path = time_ + '.txt'
+md_path = os.path.join(log_dir, md_path)  # markdown文件
+big_rec = os.path.join(log_dir, big_rec)  # 大文件记录
+log_path = os.path.join(log_dir, log_path)  # 日志路径
 ignore_info = f'\n\n[{"*" * 30} 文件过大，跳过 {"*" * 30}]\n\n'
-
+BIG_FILE = -1
+FILE_EXISTS = -2
+FILE_NOT_EXISTS = -3
 lzy = LanZouCloud()
-
-lzy.login_by_cookie(cookie)
+# 使用131的cookie登录
+lzy.login_by_cookie(cookie131)
 
 
 def split_name_type(file_path):
@@ -57,7 +54,7 @@ def split_name_type(file_path):
     return file_name, file_type
 
 
-def writeToMd(file_path, content):
+def writeToFile(file_path, content):
     """将内容写入文件"""
     with open(file_path, 'a', encoding='utf-8') as f:
         f.write(content)
@@ -84,13 +81,13 @@ def isBigFile(file_path, size_limit=100):
     if file_size_MB > size_limit:
         file_name = os.path.basename(file_path)
         ignore_info += f'[{file_name}]({file_path}) 大小: {file_size_MB:.2f}MB\n\n'
-        return -1
+        return BIG_FILE
     else:
         file_size_MB = f'{file_size_MB:.2f}'
         return file_size_MB
 
 
-def getFileMd5(file_path):
+def getFullFileMd5(file_path):
     # 计算文件md5
     md5 = hashlib.md5()
     with open(file_path, 'rb') as f:
@@ -99,6 +96,15 @@ def getFileMd5(file_path):
             if not data:
                 break
             md5.update(data)
+    return md5.hexdigest()
+
+
+def getFileMd5(file_path):
+    # 计算文件md5
+    md5 = hashlib.md5()
+    with open(file_path, 'rb') as f:
+        data = f.read(4096)
+        md5.update(data)
     return md5.hexdigest()
 
 
@@ -131,15 +137,15 @@ def handler(fid, is_file):
         fileNameUrlDict[file_name] = share_info.url
 
 
-def workingWithFolders(folder_path, parent_dir_id=-1, passwd=default_password):
+def workingWithFolders(dir_path, parent_dir_id=-1, passwd=default_password):
     """
     获取所有文件夹, 存在则获取信息, 不存在则创建
-    :param folder_path: 文件夹路径
+    :param dir_path: 文件夹路径
     :param parent_dir_id: 父文件夹id
     :param passwd: 默认密码
     :return: 文件夹编号, 文件夹链接
     """
-    folder_name = os.path.basename(folder_path)
+    folder_name = os.path.basename(dir_path)
     Log(f'{"-" * 30}开始处理文件夹: {folder_name}{"-" * 30}')
     # 获取蓝奏云账号下所有文件夹信息
     all_dirs = lzy.get_move_folders()
@@ -159,156 +165,77 @@ def workingWithFolders(folder_path, parent_dir_id=-1, passwd=default_password):
     return dir_id, dir_url
 
 
-def needToUploadSelectByMysql(_cursor, file_path: str):
-    file_md5 = getFileMd5(file_path)
-    # 判断文件在数据库内是否已存在
-    _cursor.execute(f"select md5_value from mydata.tool_md5 where md5_value=%s", file_md5)
-    cursor_fetchall = _cursor.fetchall()
-    # 文件不存在, 将数据写入数据库
-    if cursor_fetchall == ():
-        _cursor.execute(f"insert into mydata.tool_md5(md5_value, tool_name, tool_size, tool_path) values(%s, %s, %s, %s)",
-                        (file_md5, _file, file_size, dir_path))
-        return True
-    return False
+def upload_local_file(lz_files, dir_id, file_path, ):
+    file_name = os.path.basename(file_path)
+    lz_info = lz_files.find_by_name(file_name)  # 判断目标文件夹下是否已有同名文件
+    if lz_info is not None:
+        handler(lz_info.id, True)
+        return FILE_EXISTS
+    file_size = isBigFile(file_path)
+    # 大文件 存储日志, 直接跳过
+    if file_size == BIG_FILE:
+        return BIG_FILE
+    upload_flag = lzy.upload_file(
+        file_path,
+        folder_id=dir_id,
+        callback=show_progress,  # 显示上传信息回调函数
+        uploaded_handler=handler  # 上传完成回调函数
+    )
+    return upload_flag
+    # return LanZouCloud.SUCCESS
 
 
-def recordError(uploadFlag):
-    if LanZouCloud.FAILED == uploadFlag:
-        Log(f'{"*" * 20} {_file} 未上传, Error: 上传失败')
-    elif LanZouCloud.NETWORK_ERROR == uploadFlag:
-        Log(f'{"*" * 20} {_file} 未上传, Error: 网络异常')
-    elif LanZouCloud.PATH_ERROR == uploadFlag:
-        Log(f'{"*" * 20} {_file} 未上传, Error: 路径错误')
-
-
-def scanDir(dir_path, parent_dir_id=-1, writeToMysql=None):
+def scanDir(dir_path, parent_dir_id=-1, level='#'):
     """
     遍历文件夹, 并上传文件
     :param dir_path: 文件夹路径
-    :param parent_dir_id: 蓝奏云文件夹id, 默认-1, 代表根路径
-    :param writeToMysql: 是否需要使用mysql记录数据, 默认为空, 需要则传递游标
+    :param parent_dir_id: 文件夹id
+    :param level: 文件夹等级, 用于输出到md时的标题等级
     """
     # 获取目录名
     folder_name = os.path.basename(dir_path)
     dir_id, dir_url = workingWithFolders(folder_name, parent_dir_id)
+    lz_files = lzy.get_file_list(dir_id)
     # 将父目录名写入markdown
-    writeToMd(md_path, f'# [{folder_name}]({dir_url})\n\n')
-    # 文件名-链接字典初始化
+    writeToFile(md_path, f'{level} [{folder_name}]({dir_url})\n\n')
+    # 文件名-链接 字典初始化
     global fileNameUrlDict
     fileNameUrlDict = {}
-    # 待处理文件夹列表初始化
-    dir_list = []
+    dir_list = []  # 待处理文件夹列表
     for _file in os.listdir(dir_path):
-        # 处理拼接文件路径
+        # 处理文件路径
         file_path = os.path.join(dir_path, _file)
-        # 文件, 大小合理 存储后上传
+        # 文件
         if os.path.isfile(file_path):
-            file_size = isBigFile(file_path)
-            # 大文件 存储日志, 直接跳过
-            if file_size == -1:
-                continue
-            if writeToMysql is not None:
-                if needToUploadSelectByMysql(writeToMysql, file_path):
-                    uploadFlag = lzy.upload_file(
-                        file_path,
-                        folder_id=dir_id,
-                        callback=show_progress,  # 显示上传信息回调函数
-                        uploaded_handler=handler  # 上传完成回调函数
-                    )
-                    if LanZouCloud.SUCCESS != uploadFlag:
-                        recordError(uploadFlag)
-                else:
-                    Log(f'{_file} 已存在')
-            else:
-                uploadFlag = lzy.upload_file(
-                    file_path,
-                    folder_id=dir_id,
-                    callback=show_progress,  # 显示上传信息回调函数
-                    uploaded_handler=handler  # 上传完成回调函数
-                )
-                if LanZouCloud.SUCCESS != uploadFlag:
-                    recordError(uploadFlag)
-            continue
+            upload_flag = upload_local_file(lz_files, dir_id, file_path)
+            if LanZouCloud.SUCCESS == upload_flag:
+                Log(f'{_file} 上传成功✔')
+            elif BIG_FILE == upload_flag:
+                writeToFile(big_rec, f"{file_path}\n")
+            elif FILE_EXISTS == upload_flag:
+                Log(f'{_file} 已存在')
+            elif LanZouCloud.FAILED == upload_flag:
+                Log(f'{"*" * 20} {_file} 未上传, Error: 上传失败')
+            elif LanZouCloud.NETWORK_ERROR == upload_flag:
+                Log(f'{"*" * 20} {_file} 未上传, Error: 网络异常')
+            elif LanZouCloud.PATH_ERROR == upload_flag:
+                Log(f'{"*" * 20} {_file} 未上传, Error: 路径错误')
         # 文件夹入队, 处理完文件后统一处理
         if os.path.isdir(file_path):
+            # 排除部分指定文件夹
+            if _file in except_dir:
+                continue
             toDealDirPath = os.path.join(dir_path, _file)
             dir_list.append(toDealDirPath)
-    # 文件上传完成后, 将数据写入markdown文件
+    # 文件上传完成后, 将fileNameUrlDict写入markdown文件
     writeDictToMd()
     # 处理文件后处理文件夹
     for _dir_path in dir_list:
-        scanDir(_dir_path, dir_id)
+        scanDir(_dir_path, dir_id, level + '#')
 
 
 if __name__ == '__main__':
-    if UseMysql:
-        # 连接数据库, 获取游标
-        connect = pymysql.connect(**config)
-        cursor = connect.cursor()
-        scanDir(r'F:\01_软件,环境\01_工具', -1, writeToMysql=cursor)
-        connect.commit()
-        cursor.close()
-        connect.close()
-    else:
-        scanDir(r'F:\01_软件,环境\01_工具', -1)
-        # scanDir(r'F:\01_软件,环境\03_压缩', 5506472)
+    scanDir(scanPath, -1, '#')
     Log(ignore_info)  # 将因为文件过大而忽略的文件记录到日志
+    # scanDir(r'F:\01_软件,环境\03_压缩', 5506472)
     ...
-    # 测试
-
-# In[41]:
-
-# 提交MySQL命令
-# _cursor.execute("insert into mydata.soft(name, url) values(%s, %s)", (soft_name, soft_url))
-# _cursor.execute("select url from mydata.soft where name=%s", ('WinRAR',))
-# print(_cursor)
-# print(_cursor.fetchone()[0])
-# _cursor.execute("select url from mydata.soft where name=%s", ('Wi2nRAR',))
-# print(_cursor)
-# print(_cursor.fetchall())
-
-# dir_path = r'F:\01_软件,环境\01_工具'
-# parent_folder_name = os.path.basename(os.path.dirname(dir_path))
-# print(parent_folder_name)
-# print(os.path.basename(dir_path))
-# print(os.path.dirname(dir_path))
-
-# In[35]:
-
-
-# a = [1, 2, 3, 4, 5]
-# while len(a) > 0:
-#     print(a)
-#     print(a.pop(0))
-
-# # 之前处理逻辑
-# ```python
-# for root, dirs, files in os.walk(dir_path):
-#     for _file in files:
-#         file_path = os.path.join(root, _file)
-#         # 上传文件, 在回调函数中获取链接, 存储到全局变量内
-#         lzy.upload_file(
-#             file_path,
-#             folder_id=5479523,
-#             callback=show_progress,
-#             uploaded_handler=handler
-#         )
-# ```
-
-# In[21]:
-
-
-# for file in lzy.get_file_list(5479523):
-#     print(file.name)
-
-# createFlag = lzy.mkdir(-1, 'test')
-# if createFlag == LanZouCloud.SUCCESS:
-#     print('创建成功')
-# else:
-#     print('创建失败')
-
-# lzy.rename_dir(5479523, '操作')
-# print(lzy.get_dir_list())
-
-# os.path.getsize(r'D:\0a.dataout\test\soft\soft.html') / 1024
-# # lzy.upload_file()

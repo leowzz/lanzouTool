@@ -34,11 +34,11 @@ pip install lanzou-api
 
 - 打开浏览器调试界面(按F12), 选择网络(Network)
 
-<img src="https://github.com/3181538941/lanzouTool/blob/main/pic/img.png"/>
+<img src="https://github.com/3181538941/lanzouTool/blob/main/pic/img.png" alt=""/>
 
 - 选择account.php, 在响应头中查看cookie
 
-<img src="https://github.com/3181538941/lanzouTool/blob/main/pic/login.png"/>
+<img src="https://github.com/3181538941/lanzouTool/blob/main/pic/login.png" alt=""/>
 
 或使用其他方式获取cookie
 
@@ -49,30 +49,25 @@ Cookie 位置:
 
 ## 配置基本参数
 
-打开`lanzouTool.py`, 在文件中修改如下代码:
+打开`lanzouTool.py`, 在文件中修改配置区域代码:
 
 ```python
-# 是否使用mysql存储文件md5等信息, 主要用来检测文件是否已经上传过
-# 如过没有相关环境或不想使用, 则下面的config字典也可以忽略
-UseMysql = False
+# 配置区域 begin
+# 要扫描的目录
+scanPath = r'B:\01_软件,环境\01_工具'
 # cookie内的登录信息, cookie中获取的信息
 cookie131 = {
     'ylogin'      : '*******',
-    'phpdisk_info': 'AjRWATUAOwBhDGJTAAVhAA......',
+    'phpdisk_info': 'AjOwBhVhAA......',
 }
-# 默认日志生成路径
+# 日志生成目录, 运行后会生成:
+# 1. .md文件: 用于记录文件名称, 蓝奏云链接, 并自动生成一个引用行用于日后增添文件介绍
+# 2. bigFiles.txt: 因为大小超过100MB而略过的文件, 记录其路径
+# 3. .log: 程序运行日志
 log_dir = r'./log'
 # 文件默认密码, 上传文件或者新建文件夹后会设置成默认密码
 default_password = '****'
-# 数据库配置参数, UseMysql = False 时忽略
-config = {
-    'host'    : "localhost",
-    'port'    : 3306,
-    'user'    : "root",
-    'passwd'  : "******",
-    'charset' : 'utf8',
-    'database': 'mydata',
-}
+# 配置区域 end
 ```
 
 ## 执行文件
@@ -82,4 +77,8 @@ config = {
 # 调用其他api请参考: [api文档](https://github.com/zaxtyson/LanZouCloud-API/wiki)
 
 另行开发请注明出处, 如果有更好的方案, 请提交issue
+
+# 版本
+
+- V1.1 将文件已上传的判断方式由**计算文件MD5并存储**更改为**上传前获取目标文件夹内所有文件名再判断**
 
